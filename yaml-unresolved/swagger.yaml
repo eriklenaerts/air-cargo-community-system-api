@@ -1,0 +1,495 @@
+openapi: 3.0.0
+# Added by API Auto Mocking Plugin
+info:
+  version: 0.1.0
+  title: Air Cargo Community System API
+  description: Send electronic Air Waybill documents to a carrier through one of the supported Cargo Community Systems, which are `Cargonaut` and `Brucargo Community System (BCS)`. 
+  
+  
+    Using this API you can send eAWB documents to a carrier through a Cargo Community System and later on request the status of this eAWB. Whenever something is wrong (e.g. incorrect flight number), carriers respond to this eAWB using various error codes.
+
+  termsOfService: terms
+  contact:
+    name: Bruno Bardyn
+    url: https://www.streamsoftware.be
+    email: bruno.bardyn@streamsoftware.be
+servers:
+  - description: SwaggerHub API Auto Mocking
+    url: https://virtserver.swaggerhub.com/eriklenaerts/CargoCommunitySystemAPI/0.1.0
+  - description: Production API
+    url: https://api.streamsoftware.be/logistics/accs/v1/
+paths:
+  '/airWaybills':
+    post:
+      summary: Add a new Air Waybill
+      description: When adding this new Air Waybills to the register, it is not send automatically. You need to send this Air Waybill to a Cargo CommunitySystem using the `/airwaybills/{id}/posts` operation. To retrieve the status of the Air Waybill, retrieve either the receipts orthe Air Waybill resource itself and look for the communication status.
+      tags:
+        - Air Waybills
+      requestBody:
+        description: Provide the following payload to register an Air Waybill
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AirWaybill'
+      responses:
+        '201':
+          description: Air Waybill registered
+        '400':
+          $ref: '#/components/responses/BadRequestResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedResponse'
+        '403':
+          $ref: '#/components/responses/ForbiddenResponse'
+        '409':
+          $ref: '#/components/responses/AlreadyExistsResponse'
+        '422':
+          $ref: '#/components/responses/InvalidPayloadResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerResponse'
+        'default':
+          $ref: '#/components/responses/UnexpectedResponse'
+components:
+  parameters:
+    AWBNumberPathParameter:
+      name: number
+      in: path
+      description: The number of the Air Waybill as issued by the handling carrier
+      required: true
+      schema:
+        type: string
+        pattern: '^\d{3}-\d{7}[0-6]{1}$'
+      example: '098-85966786'
+    PartyQueryParameter:
+      name: party
+      in: query
+      description: Filter the results for this given party. You can use either the code or the party name.
+      schema:
+        type: string
+      example: 'StreamSoftware'
+    SearchQueryParameter:
+      name: q
+      in: query
+      description: A parameter you can use to do a full-text search.
+      schema:
+        type: string
+      example: 'Brussels'
+    SortQueryParameter:
+      name: sort
+      in: query
+      description: Multi-value query param with list of properties to sort on. Default sorting direction is ascending. To indicate descending direction, the property may be prefixed with -.
+      schema:
+        type: string
+      example: 'age&sort=-name'
+    PageQueryParameter:
+      name: page
+      in: query
+      description: Index of the current page, should be 1-based (the default and first page is 1)
+      required: true
+      schema:
+        type: string
+        default: 1
+      example: 4
+    PageSizeQueryParameter:
+      name: pageSize
+      in: query
+      description: Maximum number of items per page. 
+      required: true
+      schema:
+        type: integer
+        default: 10
+      example: 10
+  responses:
+    BadRequestResponse:
+      description: Bad request
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/InvalidParamProblem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#bad-request'
+            title: Bad Request
+            status: 400
+            detail: 'The parameters in the request url are invalid.'
+            instance: 'a73db142-7879-4d35-bb73-e69148357e35'
+            invalidParams:
+            - in: path
+              name: mandatoryParam
+              reason: parameter is missing 
+            - in: path
+              name: integerParam
+              reason: parameter is not a valid integer
+              value: 123E
+    UnauthorizedResponse:
+      description: Unauthorized
+      content:
+        application/problem+json:
+          schema:
+            oneOf:
+              - $ref: '#/components/responses/NoAccessTokenResponse'
+              - $ref: '#/components/responses/InvalidAccessTokenResponse'
+              - $ref: '#/components/responses/ExpiredAccessTokenResponse'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#invalid-access-token'
+            title: No Access Token.
+            status: 401
+            detail: No Bearer access token found in Authorization HTTP header
+            instance: 'https://www.streamlineronline.be/rest/logs/60d94639-8b27-4361-9761-896d3d2d1beb'
+    NoAccessTokenResponse:
+      description: No Access Token
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#invalid-access-token'
+            title: No Access Token.
+            status: 401
+            detail: No Bearer access token found in Authorization HTTP header
+            instance: 'https://www.streamlineronline.be/rest/logs/60d94639-8b27-4361-9761-896d3d2d1beb'
+    InvalidAccessTokenResponse:
+      description: Invalid Access Token
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#invalid-access-token'
+            title: Invalid Access Token
+            status: 401
+            detail: The Bearer access token found in the Authorization HTTP header is invalid
+            instance: 'https://www.streamlineronline.be/rest/logs/831910d6-6b7b-4fad-86cf-350429a3b3ea'
+    ExpiredAccessTokenResponse:
+      description: Expired Access Token
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#expired-access-token'
+            title: Expired Access Token
+            status: 401
+            detail: The Bearer access token found in the Authorization HTTP header has expired
+            instance: 'https://www.streamlineronline.be/rest/logs/a1f7dd6d-b757-467d-8ec9-786ae9a14bb6'
+    ForbiddenResponse:
+      description: Forbidden
+      content:
+        application/problem+json:
+          schema:
+            oneOf:
+              - $ref: '#/components/responses/MissingScopeResponse'
+              - $ref: '#/components/responses/MissingPermissionResponse'
+              - $ref: '#/components/responses/MissingTenantResponse'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#missing-scope'
+            title: Missing scope
+            status: 403
+            detail: Forbidden to consult or manipulate this resource
+            instance: 'https://www.streamlineronlinee.be/rest/logs/f5809e62-4861-4f91-bc14-ce011a40d47d'
+    MissingScopeResponse:
+      description: Missing Scope
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#missing-scope'
+            title: Missing scope
+            status: 403
+            detail: Forbidden to consult this resource
+            instance: 'https://www.streamlineronline.be/rest/logs/f5809e62-4861-4f91-bc14-ce011a40d47d'
+    MissingTenantResponse:
+      description: Missing or incorrect tenant identifier
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#missing-tenant'
+            title: Missing scope
+            status: 403
+            detail: Forbidden to consult this resource
+            instance: 'https://www.streamlineronline.be/rest/logs/f5809e62-4861-4f91-bc14-ce011a40d47d'
+    MissingPermissionResponse:
+      description: Missing Permission
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#missing-scope'
+            title: Missing permission
+            status: 403
+            detail: Not permitted to update the details of this resource
+            instance: 'https://www.streamlineronline.be/rest/logs/146aadbb-3a4e-4518-b431-79e64028aa7d'
+    NotFoundResponse:
+      description: Not found
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#resource-not-found'
+            title: Resource Not Found.
+            status: 404
+            detail: No example resource found
+            instance: 'https://www.streamlineronline.be/rest/logs/d8b8c24f-7c6f-4f9a-bca4-bfd421fe38ac'
+    AlreadyExistsResponse:
+      description: Conflict
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#resource-already-exists'
+            title: Resource already exists.
+            status: 409
+            detail: "You can't create this resource again, there's already a resource with the given identifier."
+            instance: 'https://www.streamlineronline.be/rest/logs/d8b8c24f-7c6f-4f9a-bca4-bfd421fe38ac'
+    PreconditionFailedResponse:
+      description: Precondition Failed
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#resource-already-exists'
+            title: The conditions in the header are not met.
+            status: 412
+            detail: Fails whenever you specified a condition in the header (If-*) that was not met. Typically this is used for PUT operations that update a resource where the identifier of the last-known version is specified in the If-Match header.
+            instance: 'https://www.streamlineronline.be/rest/logs/d8b8c24f-7c6f-4f9a-bca4-bfd421fe38ac'
+    InvalidPayloadResponse:
+      description: Unprocessable Entity
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#resource-already-exists'
+            title: The provided payload content is incorrect
+            status: 422
+            detail: The request as such was well formed, however there's something wrong with the actual content itself
+            instance: 'https://www.streamlineronline.be/rest/logs/d8b8c24f-7c6f-4f9a-bca4-bfd421fe38ac'
+    TooManyRequestsResponse:
+      description: Too many requests
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#too-many-requests'
+            title: Too Many Requests.
+            status: 429
+            detail: No more requests accepted before 2020-08-09T06:56:00Z
+            instance: 'https://www.streamlineronline.be/rest/logs/6fe14b9f-7463-4296-8098-e7476c4fb5d9'
+    UnexpectedResponse:
+      description: Unexpected error
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#unexpected-problem'
+            title: Unexpected problem
+            status: 500
+            detail: This server encountered an unexpected condition that prevented it from fulfilling the request.
+            instance: 'https://www.streamlineronline.be/rest/logs/05139857-abd4-4906-9c69-f4199eb1a6bb'
+    InternalServerResponse:
+      description: Internal Server Error
+      content:
+        application/problem+json:
+          schema:
+             $ref: '#/components/schemas/Problem'
+          example:
+            type: 'https://www.gcloud.belgium.be/rest/#internal-server-error'
+            title: Internal Server Error
+            status: 500
+            detail: This server encountered an internal error that prevented it from fulfilling the request.
+            instance: 'https://www.streamlineronline.be/rest/logs/bdd5d14f-661c-4c78-a956-320514f34bb3'
+  schemas:
+    Problem:
+      $ref: 'https://www.gcloud.belgium.be/rest/schemas/problem/v1/problem-v1.yaml#/definitions/Problem'
+    InvalidParamProblem:
+      $ref: 'https://www.gcloud.belgium.be/rest/schemas/problem/v1/problem-v1.yaml#/definitions/InvalidParamProblem'
+    SelfLink:
+      $ref: 'https://raw.githubusercontent.com/belgif/openapi-common/master/src/main/openapi/common/v1/common-v1.yaml#/components/schemas/SelfLink'
+    Uuid:
+      description: Universally Unique Identifier, as standardized in RFC 4122 and ISO/IEC 9834-8
+      type: string
+      pattern: '^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$'
+    Pages:
+      description: >-
+        a generic model used to describe paging information when requesting a
+        list of resources
+      type: object
+      properties:
+        pageSize:
+          type: integer
+          description: the requested pageSize in the query url
+          example: 10
+        total:
+          type: integer
+          description: the total number of items in the resulting collection
+          example: 168
+    Links:
+      type: object
+      description: provides navigational uri's to other pages of the collection
+      properties:
+        first:
+          type: string
+          description: contains a link to the first page of this collection
+          example: 'https://api.streamsoftware.be/logistics/accs/v1/airwaybills/?page=0&page=10'
+        last:
+          type: string
+          description: contains a link to the last page of this collection
+          example: 'https://api.streamsoftware.be/logistics/accs/v1/airwaybills/?page=17&pageSize=10'
+        prev:
+          type: string
+          description: contains a link to the previous page of this collection
+          example: 'https://api.streamsoftware.be/logistics/accs/v1/airwaybills/?page=4&pageSize=10'
+        next:
+          type: string
+          description: contains a link to the next page of this collection
+          example: 'https://api.streamsoftware.be/logistics/accs/v1/airwaybills/?page=6&pageSize=10'
+    AirWaybill:
+      allOf:
+      - $ref: '#/components/schemas/SelfLink'
+      - type: object
+        description: Represent a complete Air Waybill including its parties, routes, goods, handling information, security statusses, etc.
+        properties:
+          awbNumber:
+            type: string
+            pattern: '^\d{3}-\d{7}[0-6]{1}$'
+            description: The Air Waybill number as issued by the handling carrier
+            example: '098-85966786'
+        example:
+          self: 'https://api.streamsoftware.be/logistics/accs/v1/airwaybills/098-85966786'
+          awbNumber: '098-85966786'
+          todo: The Air Waybill model is not complete yet, still on the todo list. ;)
+    AirWaybills:
+      allOf:
+      - $ref: '#/components/schemas/SelfLink'
+      - type: object
+        description: todo
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/AirWaybill'
+      - $ref: '#/components/schemas/Pages'
+      - $ref: '#/components/schemas/Links'
+    AirWaybillPost:
+      allOf:
+      - $ref: '#/components/schemas/SelfLink'
+      - type: object
+        description: Whenever an Air Waybill is send to the Cargo Community System, it is added to this collection.
+        properties:
+          id: 
+            type: integer
+            format: int32
+            description: The unique id of this Air Waybill post
+            readOnly: true
+            example: 1
+          awbNumber:
+            type: string
+            pattern: '^\d{3}-\d{7}[0-6]{1}$'
+            description: The Air Waybill number as issued by the handling carrier
+            example: '098-85966786'
+          cargoCommunitySystemCode:
+            type: string
+            description: The unique code for this Cargo Community System
+            example: 'CAR'
+          protocolCode:
+            type: string
+            description: The unique code of the protocol that needs to be used for the communication. See `/protocols` for a list. 
+            example: 'CargoXml'
+          sendTimestamp:
+            type: string
+            format: date-time
+            description: the date and time this eAWB was sent to the Cargo Community System
+            readOnly: true
+            example: '2017-07-21T17:32:28Z'
+        example:
+          self: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/2'
+          id: 2
+          awbNumber: '098-85966786'
+          protocolCode: 'CargoXml'
+          postTimestamp: '2017-07-21T17:32:28Z'
+          cargoCommunitySystemCode: 'BCS'
+    AirWaybillPosts:
+      allOf:
+      - $ref: '#/components/schemas/SelfLink'
+      - type: object
+        description: todo
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/AirWaybillPost'
+      - $ref: '#/components/schemas/Pages'
+      - $ref: '#/components/schemas/Links'
+      example:
+        self: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/?page=5&pageSize=10'
+        items:
+        - self: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/1'
+          id: 1
+          awbNumber: 098-85966786
+          protocolCode: 'CargoXml'
+          cargoCommunitySystemCode: 'CAR'
+          postTimestamp: '2017-07-21T17:32:28Z'
+        - self: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/2'
+          id: 2
+          awbNumber: 098-85966786
+          protocolCode: 'CargoXml'
+          cargoCommunitySystemCode: 'CAR'
+          postTimestamp: '2017-07-23T11:11:11Z'
+        first: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/?page=0&page=10'
+        last: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/?page=17&pageSize=10'
+        prev: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/?page=4&pageSize=10'
+        next: 'https://api.streamsoftware.be/logistics/accs/v1/airWaybills/098-85966786/posts/?page=6&pageSize=10'
+    AirWaybillReceipt:
+      allOf:
+      - $ref: '#/components/schemas/SelfLink'
+      - type: object
+        description: todo
+        properties:
+          awbNumber:
+            type: string
+            pattern: '^\d{3}-\d{7}[0-6]{1}$'
+            description: The Air Waybill number as issued by the handling carrier
+            example: '098-85966786'
+          carrierIATACode:
+            type: string
+            description: The 2-letter airline carrier code this receipt originate from
+            example: 'SN'
+          cargoCommunitySystemCode:
+            type: string
+            description: The unique code from the Cargo Community System this receipt originates from 
+            example: 'BCS'
+          receivedTimestamp:
+            type: string
+            format: date-time
+            description: The date and time this receipt was delivered by the Cargo Community System
+            example: '2017-07-21T17:32:28Z'
+          originalMessage:
+            $ref: '#/components/schemas/ResponseMessage'
+    AirWaybillReceipts:
+      allOf:
+      - $ref: '#/components/schemas/SelfLink'
+      - type: object
+        description: todo
+        properties:
+          items:
+            type: array
+            items:
+              $ref: '#/components/schemas/AirWaybillReceipt'
+      - $ref: '#/components/schemas/Pages'
+      - $ref: '#/components/schemas/Links'
+externalDocs:
+  url: 'https://streamsoftware.atlassian.net/wiki/spaces/SO/pages/460357643/API+Architecture'
+  description: StreamSoftware API Documentation
+tags:
+  - name: Air Waybills 
+    description: "Air Waybills are electronic documents (aka `eAWB`) that inform carriers about a shipment that need to be transported."
+  - name: Communication
+    description: "Air Waybills are send to the Air Cargo Community System of choice. Responses are received in an asynchronous fashion."
